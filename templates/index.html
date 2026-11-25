@@ -1,0 +1,113 @@
+{% set en = (language == 'en') %}
+<!DOCTYPE html>
+<html lang="{{ 'en' if en else 'tr' }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ 'Gender Prediction' if en else 'Cinsiyet Tahmini' }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body class="{% if predicted_gender == 'Male' %}is-boy{% elif predicted_gender == 'Female' %}is-girl{% endif %}">
+    <div class="blob blob-a" aria-hidden="true"></div>
+    <div class="blob blob-b" aria-hidden="true"></div>
+
+    <main class="page">
+        <header class="topbar">
+            <div class="brand">
+                <img src="{{ url_for('static', filename='baby_icon.png') }}" alt="" class="brand-icon">
+                <span>{{ 'Gender Prediction' if en else 'Cinsiyet Tahmini' }}</span>
+            </div>
+            <nav class="lang-switch" aria-label="{{ 'Language' if en else 'Dil' }}">
+                <a href="/?language=tr" class="{{ '' if en else 'active' }}">TR</a>
+                <a href="/?language=en" class="{{ 'active' if en else '' }}">EN</a>
+            </nav>
+        </header>
+
+        <section class="hero">
+            <h1>{{ 'Boy or girl?' if en else 'Kız mı, erkek mi?' }}</h1>
+            <p class="lead">{{ 'Expectant parents want to know the gender of their baby before it is born and make preparations accordingly. Enter two dates and find out!' if en else 'Anne ve baba adayları bebeklerinin cinsiyetini doğmadan öğrenmek ve buna göre hazırlık yapmak ister. İki tarih girin ve öğrenin!' }}</p>
+        </section>
+
+        {% if predicted_gender in ['Male', 'Female'] %}
+        <section class="card result" aria-live="polite">
+            {% set boy = (predicted_gender == 'Male') %}
+            <div class="result-photo">
+                <img src="{{ url_for('static', filename='boy.png' if boy else 'girl.png') }}"
+                     alt="{{ ('Baby Boy' if en else 'Erkek Bebek') if boy else ('Baby Girl' if en else 'Kız Bebek') }}">
+            </div>
+            <div class="result-body">
+                <p class="eyebrow">{{ 'Prediction' if en else 'Tahmin' }}</p>
+                <h2>{{ ('Baby Boy' if en else 'Erkek Bebek') if boy else ('Baby Girl' if en else 'Kız Bebek') }}</h2>
+                <a href="/?language={{ language }}" class="link-btn">{{ 'Try again' if en else 'Tekrar dene' }}</a>
+            </div>
+        </section>
+        {% endif %}
+
+        <form class="card form" action="/predict_gender" method="post">
+            <input type="hidden" name="language" value="{{ language }}">
+
+            {% if error_message %}
+            <div class="alert" role="alert">{{ error_message }}</div>
+            {% endif %}
+
+            <div class="field">
+                <label for="conception_date">{{ 'Conception date' if en else 'Gebe kalınan tarih' }}</label>
+                <input type="date" id="conception_date" name="conception_date" required
+                       value="{{ request.form.get('conception_date', '') }}">
+            </div>
+
+            <div class="field">
+                <label for="husband_birth_date">{{ "Father's date of birth" if en else 'Babanın doğum tarihi' }}</label>
+                <input type="date" id="husband_birth_date" name="husband_birth_date" required
+                       value="{{ request.form.get('husband_birth_date', '') }}">
+                <small>{{ 'Father must be between 18 and 37 at conception.' if en else 'Baba, gebelik tarihinde 18 ile 37 yaş arasında olmalı.' }}</small>
+            </div>
+
+            <button type="submit">{{ 'Predict gender' if en else 'Cinsiyeti tahmin et' }}</button>
+        </form>
+
+        <section class="note">
+            <img src="{{ url_for('static', filename='heart_icon.png') }}" alt="" class="note-icon">
+            <p>{{ "According to research conducted with men between the ages of 18-37, every man produces a single type of sperm at a certain age and month. The Gender Prediction application was developed with this data. Please enter the date of conception and your partner's actual birth date." if en else '18-37 yaşları arasındaki erkeklerle yapılan araştırmalara göre, her erkeğin belirli yaş ve ayda tek tip sperm türü ürettiği öğrenilmiştir. Cinsiyet Tahmin uygulaması bu verilerle geliştirilmiştir. Lütfen hamile kaldığınız tarihi ve partnerinizin gerçek doğum tarihini giriniz.' }}</p>
+        </section>
+    </main>
+
+    {% if predicted_gender in ['Male', 'Female'] %}
+    <canvas id="confetti" aria-hidden="true"></canvas>
+    <script>
+        (function () {
+            if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+            const canvas = document.getElementById('confetti');
+            const ctx = canvas.getContext('2d');
+            const colors = {{ "['#7fb3e6','#a9cdf0','#ffd27f','#ffffff']" if predicted_gender == 'Male' else "['#f4a3b8','#f9c9d6','#ffd27f','#ffffff']" }};
+            let w, h;
+            function resize() { w = canvas.width = innerWidth; h = canvas.height = innerHeight; }
+            resize(); addEventListener('resize', resize);
+            const pieces = Array.from({ length: 140 }, () => ({
+                x: Math.random() * w, y: -20 - Math.random() * h * 0.6,
+                r: 4 + Math.random() * 6, vy: 2 + Math.random() * 3, vx: -1 + Math.random() * 2,
+                rot: Math.random() * Math.PI, vr: -0.1 + Math.random() * 0.2,
+                c: colors[Math.floor(Math.random() * colors.length)]
+            }));
+            const start = performance.now();
+            (function frame(t) {
+                ctx.clearRect(0, 0, w, h);
+                let alive = false;
+                for (const p of pieces) {
+                    p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+                    if (p.y < h + 20) alive = true;
+                    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+                    ctx.fillStyle = p.c; ctx.fillRect(-p.r / 2, -p.r / 4, p.r, p.r / 2);
+                    ctx.restore();
+                }
+                if (alive && t - start < 6000) requestAnimationFrame(frame);
+                else canvas.remove();
+            })(start);
+        })();
+    </script>
+    {% endif %}
+</body>
+</html>

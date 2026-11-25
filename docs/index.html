@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cinsiyet Tahmini</title>
+    <link rel="icon" href="baby_icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="blob blob-a" aria-hidden="true"></div>
+    <div class="blob blob-b" aria-hidden="true"></div>
+
+    <main class="page">
+        <header class="topbar">
+            <div class="brand">
+                <img src="baby_icon.png" alt="" class="brand-icon">
+                <span data-t="title"></span>
+            </div>
+            <nav class="lang-switch" aria-label="Language">
+                <a href="#" data-lang="tr">TR</a>
+                <a href="#" data-lang="en">EN</a>
+            </nav>
+        </header>
+
+        <section class="hero">
+            <h1 data-t="heading"></h1>
+            <p class="lead" data-t="lead"></p>
+        </section>
+
+        <section class="card result" id="result" aria-live="polite" hidden>
+            <div class="result-photo"><img id="result-img" src="" alt=""></div>
+            <div class="result-body">
+                <p class="eyebrow" data-t="prediction"></p>
+                <h2 id="result-title"></h2>
+                <a href="#" class="link-btn" id="again" data-t="again"></a>
+            </div>
+        </section>
+
+        <form class="card form" id="form" novalidate>
+            <div class="alert" id="alert" role="alert" hidden></div>
+
+            <div class="field">
+                <label for="conception_date" data-t="conception"></label>
+                <input type="date" id="conception_date" required>
+            </div>
+
+            <div class="field">
+                <label for="father_birth_date" data-t="father"></label>
+                <input type="date" id="father_birth_date" required>
+                <small data-t="ageHint"></small>
+            </div>
+
+            <button type="submit" data-t="submit"></button>
+        </form>
+
+        <section class="note">
+            <img src="heart_icon.png" alt="" class="note-icon">
+            <p data-t="note"></p>
+        </section>
+    </main>
+
+    <canvas id="confetti" aria-hidden="true"></canvas>
+
+    <script src="data.js"></script>
+    <script>
+        const TEXT = {
+            tr: {
+                title: 'Cinsiyet Tahmini',
+                heading: 'Kız mı, erkek mi?',
+                lead: 'Anne ve baba adayları bebeklerinin cinsiyetini doğmadan öğrenmek ve buna göre hazırlık yapmak ister. İki tarih girin ve öğrenin!',
+                prediction: 'Tahmin',
+                again: 'Tekrar dene',
+                conception: 'Gebe kalınan tarih',
+                father: 'Babanın doğum tarihi',
+                ageHint: 'Baba, gebelik tarihinde 18 ile 37 yaş arasında olmalı.',
+                submit: 'Cinsiyeti tahmin et',
+                note: '18-37 yaşları arasındaki erkeklerle yapılan araştırmalara göre, her erkeğin belirli yaş ve ayda tek tip sperm türü ürettiği öğrenilmiştir. Cinsiyet Tahmin uygulaması bu verilerle geliştirilmiştir. Lütfen hamile kaldığınız tarihi ve partnerinizin gerçek doğum tarihini giriniz.',
+                boy: 'Erkek Bebek', girl: 'Kız Bebek',
+                errMissing: 'Lütfen iki tarihi de girin',
+                errAge: 'Babanın yaşı 18 ile 37 arasında olmalıdır'
+            },
+            en: {
+                title: 'Gender Prediction',
+                heading: 'Boy or girl?',
+                lead: 'Expectant parents want to know the gender of their baby before it is born and make preparations accordingly. Enter two dates and find out!',
+                prediction: 'Prediction',
+                again: 'Try again',
+                conception: 'Conception date',
+                father: "Father's date of birth",
+                ageHint: 'Father must be between 18 and 37 at conception.',
+                submit: 'Predict gender',
+                note: "According to research conducted with men between the ages of 18-37, every man produces a single type of sperm at a certain age and month. The Gender Prediction application was developed with this data. Please enter the date of conception and your partner's actual birth date.",
+                boy: 'Baby Boy', girl: 'Baby Girl',
+                errMissing: 'Please enter both dates',
+                errAge: "Father's age must be between 18 and 37"
+            }
+        };
+        const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+        const $ = id => document.getElementById(id);
+        let lang = localStorage.getItem('lang') || (navigator.language.startsWith('tr') ? 'tr' : 'en');
+        let lastGender = null;
+
+        function applyLang() {
+            const t = TEXT[lang];
+            document.documentElement.lang = lang;
+            document.title = t.title;
+            document.querySelectorAll('[data-t]').forEach(el => el.textContent = t[el.dataset.t]);
+            document.querySelectorAll('[data-lang]').forEach(a => a.classList.toggle('active', a.dataset.lang === lang));
+            if (lastGender) renderResult(lastGender, false);
+            if (!$('alert').hidden && $('alert').dataset.key) $('alert').textContent = t[$('alert').dataset.key];
+        }
+
+        function showError(key) {
+            $('alert').dataset.key = key;
+            $('alert').textContent = TEXT[lang][key];
+            $('alert').hidden = false;
+        }
+
+        function parseDate(s) {
+            const [y, m, d] = s.split('-').map(Number);
+            return { y, m, d };
+        }
+
+        function renderResult(gender, celebrate) {
+            const boy = gender === 'Male';
+            const label = TEXT[lang][boy ? 'boy' : 'girl'];
+            document.body.classList.toggle('is-boy', boy);
+            document.body.classList.toggle('is-girl', !boy);
+            $('result-img').src = boy ? 'boy.png' : 'girl.png';
+            $('result-img').alt = label;
+            $('result-title').textContent = label;
+            $('result').hidden = false;
+            if (celebrate) {
+                $('result').style.animation = 'none';
+                $('result').offsetHeight;
+                $('result').style.animation = '';
+                $('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+                confetti(boy);
+            }
+        }
+
+        $('form').addEventListener('submit', e => {
+            e.preventDefault();
+            $('alert').hidden = true;
+            const c = $('conception_date').value, f = $('father_birth_date').value;
+            if (!c || !f) return showError('errMissing');
+
+            const cd = parseDate(c), fd = parseDate(f);
+            const age = cd.y - fd.y - ((cd.m < fd.m || (cd.m === fd.m && cd.d < fd.d)) ? 1 : 0);
+            if (age < 18 || age > 37) return showError('errAge');
+
+            lastGender = GENDER_TABLE[MONTHS[cd.m - 1]][String(age)];
+            renderResult(lastGender, true);
+        });
+
+        $('again').addEventListener('click', e => {
+            e.preventDefault();
+            lastGender = null;
+            $('form').reset();
+            $('result').hidden = true;
+            $('alert').hidden = true;
+            document.body.classList.remove('is-boy', 'is-girl');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        document.querySelectorAll('[data-lang]').forEach(a => a.addEventListener('click', e => {
+            e.preventDefault();
+            lang = a.dataset.lang;
+            localStorage.setItem('lang', lang);
+            applyLang();
+        }));
+
+        function confetti(boy) {
+            if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+            const canvas = $('confetti'), ctx = canvas.getContext('2d');
+            const colors = boy ? ['#7fb3e6','#a9cdf0','#ffd27f','#ffffff'] : ['#f4a3b8','#f9c9d6','#ffd27f','#ffffff'];
+            const w = canvas.width = innerWidth, h = canvas.height = innerHeight;
+            const pieces = Array.from({ length: 140 }, () => ({
+                x: Math.random() * w, y: -20 - Math.random() * h * 0.6,
+                r: 4 + Math.random() * 6, vy: 2 + Math.random() * 3, vx: -1 + Math.random() * 2,
+                rot: Math.random() * Math.PI, vr: -0.1 + Math.random() * 0.2,
+                c: colors[Math.floor(Math.random() * colors.length)]
+            }));
+            const start = performance.now();
+            (function frame(t) {
+                ctx.clearRect(0, 0, w, h);
+                let alive = false;
+                for (const p of pieces) {
+                    p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+                    if (p.y < h + 20) alive = true;
+                    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+                    ctx.fillStyle = p.c; ctx.fillRect(-p.r / 2, -p.r / 4, p.r, p.r / 2);
+                    ctx.restore();
+                }
+                if (alive && t - start < 6000) requestAnimationFrame(frame);
+                else ctx.clearRect(0, 0, w, h);
+            })(start);
+        }
+
+        applyLang();
+    </script>
+</body>
+</html>
